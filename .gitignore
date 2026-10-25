@@ -8,25 +8,44 @@ __pycache__/
 .coverage
 htmlcov/
 .env
+.env.*
+!.env.example
+*.egg-info/
 .netrc
 _netrc
 .dodsrc
 
-# Pipeline data and generated products
+# Frontend and JavaScript tooling
+node_modules/
+dist/
+coverage/
+test-results/
+playwright-report/
+blob-report/
+*.tsbuildinfo
+.vite/
+
+# Local runtime state
+.mypy_cache/
+.cache/
+*.log
+.DS_Store
+Thumbs.db
+
+# External source archives and generated products
 data/raw/
 data/interim/
 data/processed/
 data/stages/
+data/cache/
+data/downloads/
 logs/
 
-# Generated demo files are selectively force-added by the publisher.
-demo_data/*
-!demo_data/README.md
-!demo_data/valencia/
-!demo_data/valencia/**
+# Local object-store and database volumes
+.local/
+postgres-data/
+redis-data/
 
 # Editors and operating systems
 .idea/
 .vscode/
-.DS_Store
-Thumbs.db

@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jaldrishti-core"
+version = "0.1.0"
+description = "Domain and persistence building blocks for JalDrishti"
+requires-python = ">=3.12"
+dependencies = [
+  "geoalchemy2>=0.18,<1",
+  "shapely>=2.0,<3",
+  "sqlalchemy>=2.0,<3",
+]
+
+[project.optional-dependencies]
+analysis = [
+  "geopandas>=1,<2",
+  "networkx>=3.4,<4",
+  "numpy>=2,<3",
+  "pyproj>=3.7,<4",
+  "rasterio>=1.5,<2",
+  "scikit-image>=0.26,<1",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

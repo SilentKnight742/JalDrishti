@@ -1,192 +1,187 @@
-# RadarWatch
+# JalDrishti
 
-**SAR-based Earth-change and disaster-impact intelligence.**
+**Evidence-driven flood intelligence and response support for Assam.**
 
-RadarWatch is an independent 2026 portfolio project inspired by NASA Space
-Apps 2025's “Through the Radar Looking Glass” challenge. It is **not** a NASA
-Space Apps submission and is not affiliated with or endorsed by NASA, ESA,
-Copernicus, or ISRO.
+JalDrishti combines hydrometeorological observations, satellite flood evidence,
+infrastructure exposure, incident reports, and provenance in one operational
+picture. It is a research and portfolio system, not an authorised emergency
+service. Detection and geometric exposure are never presented as confirmed
+damage.
 
-The Valencia MVP uses matched before/after Sentinel-1 observations to detect
-flood/change evidence in Horta Sud, intersect that evidence with infrastructure,
-screen for potential road-network isolation, and explain the result in a public
-interactive case study.
+## Current milestone
 
-> Earlier work explored geospatial foundation models for disaster detection in
-> GeoAI ReImagined. RadarWatch revisits the problem as a new project using the
-> more mature 2026 Earth-observation ecosystem, with an emphasis on reproducible
-> SAR processing and operational consequence.
+Phase 0 through Phase 10 establish the portfolio-complete MVP:
 
-## App preview
+- React, TypeScript, Vite, and MapLibre web application
+- FastAPI service with GeoJSON geography endpoints
+- PostgreSQL/PostGIS canonical geography model
+- Redis and a Celery worker foundation
+- versioned, provenance-bearing Assam geography ingestion (35 districts, 129
+  settlements, 17 selected major rivers, and 1,481 facilities)
+- Docker Compose development environment
+- a frozen, independently reproducible Valencia case study
+- an hourly, idempotent NWDP Assam river-level ingestion path with raw-response
+  archiving, canonical station/observation tables, API endpoints, and a pilot
+  gauge layer
+- half-hourly official IMD district-warning ingestion from the public warning
+  map WFS, with all five published forecast days retained
+- three-hourly, 72-hour ECMWF IFS rainfall guidance for representative points
+  in all 35 districts, explicitly labelled as model-derived
+- interactive MapLibre and no-WebGL SVG layers for warnings, rainfall guidance,
+  districts, rivers, settlements, the pilot gauge, and opt-in facilities
+- a five-minute transparent event engine that maps official warning severity to
+  district event states using a versioned JSON policy
+- active event APIs and map layers with inspectable trigger rationale, evidence
+  records, and append-only lifecycle timelines
+- event-scoped, idempotent OPERA Sentinel-1 catalogue and processing jobs with
+  credential-aware terminal states, raw catalogue/asset provenance, metric-CRS
+  coverage validation, COG output, PostGIS extents, and UI controls
+- external-product comparison contracts and metric-CRS IoU, Dice, precision,
+  recall, and area-difference kernels, with an explicit not-configured state
+- reproducible potential-exposure snapshots for represented settlements,
+  facilities, population attributes, and road overlap
+- a 30,260-record attributed OSM backbone-road dataset plus potential road
+  disruption and settlement-to-major-road/hospital reachability screening
+- privacy-separated direct public reporting with Assam-boundary validation,
+  rate limiting, idempotency, encrypted optional contact details, metadata-
+  stripped private photos, coarsened public locations, and unverified map labels
 
-![RadarWatch Streamlit case study showing the Valencia flood summary, impact KPIs, and infrastructure screening](docs/assets/radarwatch-app.png)
+The public Assam telemetry resource is deliberately treated as a degraded
+pilot. It currently exposes one station and does not publish a timezone, stable
+station identifier, datum, or warning/danger thresholds. JalDrishti displays
+the readings and those limitations, but does not derive a flood state from
+them. The event engine can create a `watch` from an official yellow warning and
+a `warning` from an official orange or red warning. Rainfall guidance remains
+supporting evidence only. A `severe` state is deliberately unavailable until
+satellite-observed inundation and exposure evidence are available. Verified
+multi-station hydrology remains unavailable and cannot trigger a state.
 
-## MVP case study
+## Repository layout
 
-- Event: Valencia flood, 29 October 2024
-- Study area: Copernicus EMSR773 AOI03, Horta Sud
-- SAR: NASA OPERA RTC-S1, VV/VH, 30 m
-- Before: 19 October 2024
-- After: 31 October 2024
-- Method: low post-event VV plus VV/VH backscatter decrease
-- Consequence layers: roads, railways, buildings, critical facilities, and a
-  conservative potential-isolation signal
-
-RadarWatch reports **detection and exposure**, not confirmed damage. A road or
-building intersecting detected flood evidence is not necessarily damaged or
-closed.
-
-## Valencia results
-
-The reproducible real-data run completed successfully on 18 August 2026. The
-default detector produced 1.6641 km² of flood/change evidence. Against the
-exact-time CEMS Sentinel-1 delineation it achieved 0.450 IoU and 0.620 Dice/F1;
-against the optical extent from roughly eight hours earlier it achieved 0.059
-IoU and 0.112 Dice/F1. The lower cross-sensor result remains visible as an
-important temporal and methodological limitation.
-
-| Result | Value |
-| --- | ---: |
-| Exact-time precision / recall | 0.653 / 0.591 |
-| Intersected road segments / overlap | 36 / 4.72 km |
-| Intersected railway segments / overlap | 15 / 0.96 km |
-| Exposed buildings / critical facilities | 1 / 0 |
-| Potentially isolated / settlements evaluated | 0 / 194 |
-| Full pipeline runtime | 82.6 seconds |
-| Public demo bundle | 2.93 MB |
-
-The three-class Multi-Otsu threshold reached the configured upper clamp of
-`-12 dB`. This is reported in the app and provenance rather than silently
-retuned against either reference.
-
-## Architecture
-
-```mermaid
-flowchart LR
-    A[ASF / OPERA RTC-S1] --> D[Cached source data]
-    B[Copernicus EMSR773] --> D
-    C[OpenStreetMap] --> D
-    D --> E[Align and filter VV/VH]
-    E --> F[Classical flood/change evidence]
-    F --> G[Reference agreement]
-    F --> H[Infrastructure and network impact]
-    G --> I[Precomputed demo bundle]
-    H --> I
-    I --> J[Streamlit case study]
+```text
+apps/api/                  FastAPI application
+apps/web/                  React + MapLibre application
+packages/jaldrishti/       shared domain, ingestion, geospatial, and SAR code
+workers/                   Celery worker entrypoint and task routing
+migrations/                PostGIS schema migrations
+configs/                   region and source policy
+case_studies/valencia/     frozen RadarWatch Valencia v1 capsule
+tests/                     Python unit and source/API contract tests
+apps/web/e2e/              browser-to-API Playwright smoke tests
 ```
 
-Heavy geospatial work is offline. The hosted application reads only derived
-PNG, GeoJSON, and JSON files; it does not download imagery or run inference on
-web requests.
+The historical Valencia implementation remains available from the annotated
+`radarwatch-valencia-v1` tag and as a self-contained capsule under
+`case_studies/valencia`. Streamlit and Folium are not dependencies of the new
+application.
 
-## Local setup
+## Local development
 
 Requirements:
 
-- Python 3.14
-- [`uv`](https://docs.astral.sh/uv/)
-- A free NASA Earthdata account with the ASF terms accepted
+- Docker with Compose
+- Node.js 22 or newer for frontend-only development
+- Python 3.12–3.14 and [`uv`](https://docs.astral.sh/uv/) for local Python work
 
-```powershell
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+The web application is served at `http://localhost:8080`; the API and its
+OpenAPI documentation are available at `http://localhost:8000` and
+`http://localhost:8000/docs`.
+
+Run local checks without containers:
+
+```bash
+uv sync --all-packages --group dev
+uv run ruff check .
+uv run pytest
+
+cd apps/web
+npm install
+npm run lint
+npm test
+npm run build
+
+# With the Compose application still running:
+npx playwright install chromium
+npm run test:e2e
+```
+
+## Data policy
+
+Every operationally meaningful record carries source, source record ID,
+observation/publication/ingestion timestamps, source URL and version, and a
+quality classification. Administrative geometry is configured from the Survey
+of India ABDB; selected settlements, major-river context, and facilities use
+attributed OpenStreetMap data. Raw external responses are archived outside Git
+before normalisation.
+
+The Phase 1 API exposes `/api/v1/regions`, `/api/v1/districts`,
+`/api/v1/settlements`, `/api/v1/rivers`, and `/api/v1/facilities` as GeoJSON.
+The Phase 2 pilot adds `/api/v1/stations` as GeoJSON and
+`/api/v1/stations/{station_id}/observations` as a provenance-bearing time
+series contract. Phase 3 adds `/api/v1/warnings?region_id=assam&day=1` and
+`/api/v1/weather/forecasts?region_id=assam&hours=24` as GeoJSON. Phase 4 adds
+`/api/v1/events`, `/api/v1/events/{event_id}/evidence`, and
+`/api/v1/events/{event_id}/timeline`. Phase 6 adds event satellite-job creation,
+job status, and `/api/v1/events/{event_id}/flood-extents`. Phases 7–9 add
+`/api/v1/events/{event_id}/satellite-comparisons`,
+`/api/v1/events/{event_id}/impact`, and
+`/api/v1/events/{event_id}/accessibility`. Phase 10 adds multipart
+`POST /api/v1/incidents/report` and public-safe
+`GET /api/v1/events/{event_id}/incidents`.
+
+Celery Beat schedules the NWDP adapter hourly. Each source response is archived
+in the Docker `raw-data` volume before validation and persistence. To trigger a
+development ingestion immediately:
+
+```bash
+docker compose exec worker celery --app jaldrishti_workers.celery_app:celery_app \
+  call jaldrishti.ingestion.nwdp_assam
+docker compose exec worker celery --app jaldrishti_workers.celery_app:celery_app \
+  call jaldrishti.ingestion.imd_warnings_assam
+docker compose exec worker celery --app jaldrishti_workers.celery_app:celery_app \
+  call jaldrishti.ingestion.rainfall_forecast_assam
+docker compose exec worker celery --app jaldrishti_workers.celery_app:celery_app \
+  call jaldrishti.events.evaluate_assam
+```
+
+See [`configs/assam.yaml`](configs/assam.yaml) and
+[`configs/sources.yaml`](configs/sources.yaml) for the source contracts and
+freshness policy. See [`docs/phase-2-nwdp-pilot.md`](docs/phase-2-nwdp-pilot.md)
+for the telemetry limitations and
+[`docs/phase-3-weather-warnings.md`](docs/phase-3-weather-warnings.md) for
+warning/model semantics, attribution, and production constraints, and
+[`docs/phase-4-event-engine.md`](docs/phase-4-event-engine.md) for the event
+states, versioned rules, lifecycle, and evidence contract, and
+[`docs/phase-6-satellite.md`](docs/phase-6-satellite.md) for catalogue,
+authentication, processing and uncertainty semantics.
+The remaining MVP methods and caveats are documented in
+[`docs/phase-7-satellite-comparison.md`](docs/phase-7-satellite-comparison.md),
+[`docs/phase-8-impact.md`](docs/phase-8-impact.md),
+[`docs/phase-9-accessibility.md`](docs/phase-9-accessibility.md), and
+[`docs/phase-10-incident-reporting.md`](docs/phase-10-incident-reporting.md).
+
+## Valencia case study
+
+The previous SAR flood/change application is intentionally isolated:
+
+```bash
+cd case_studies/valencia
 uv sync --all-extras
-uv run radarwatch validate --config configs/valencia.yaml
-```
-
-ASF downloads use NASA's `earthaccess` authenticated HTTPS session and the
-conventional Earthdata netrc entry:
-
-```text
-machine urs.earthdata.nasa.gov
-    login YOUR_USERNAME
-    password YOUR_PASSWORD
-```
-
-Use `%USERPROFILE%\_netrc` on Windows or `~/.netrc` on Unix-like systems. Never
-commit that file. Sign in to [NASA Earthdata Login](https://urs.earthdata.nasa.gov/)
-and accept the ASF data terms through [ASF Vertex](https://search.asf.alaska.edu/)
-before the first run.
-
-Run the complete pipeline:
-
-```powershell
-uv run radarwatch run --config configs/valencia.yaml
-```
-
-Resume from cached source data:
-
-```powershell
-uv run radarwatch run --config configs/valencia.yaml --from-stage prepare --offline
-```
-
-Run the public app after `publish` completes:
-
-```powershell
+uv run pytest
 uv run streamlit run app.py
 ```
 
-## Pipeline stages
+Its original documentation, dependency lock, tests, demo bundle, and caveats
+remain byte-for-byte preserved from RadarWatch Valencia v1.
 
-1. `acquire` validates exact ASF catalogue records, downloads OPERA VV/VH and
-   masks, fetches two CEMS references, and caches OSM infrastructure.
-2. `prepare` mosaics matched bursts onto one EPSG:32630 grid, converts power to
-   dB, applies the validity mask and a 3×3 median filter, and creates browse
-   images.
-3. `detect` derives a clamped three-class Multi-Otsu water threshold, combines
-   it with dual-pol decrease rules, removes small components, and vectorizes the
-   result.
-4. `evaluate` reports IoU, Dice/F1, precision, recall, FPR, area, and threshold
-   sensitivity against two explicitly caveated CEMS products.
-5. `impact` calculates infrastructure exposure and tests named-settlement
-   reachability after hypothetical removal of intersected road edges.
-6. `publish` creates a runtime-only demo bundle under 30 MB with metrics and
-   complete provenance.
+## License and upstream data
 
-Every stage writes an atomic, hash-validated record to `data/stages`. Cached
-work is reused only while the configuration, dependency record, and output
-hashes match.
-
-## Evaluation semantics
-
-The exact-time comparison uses a CEMS product derived from the same Sentinel-1
-acquisition, so it is reported as **operational-product agreement**, not
-independent validation. The Horta Sud optical comparison is independent but
-was acquired roughly eight hours earlier during a fast-changing flash flood.
-Neither is described as field-validated ground truth.
-
-The default thresholds are not tuned against either reference. Strict and
-lenient variants show threshold sensitivity.
-
-## Data sources and attribution
-
-- OPERA RTC-S1: NASA/JPL, distributed by NASA ASF DAAC
-- Flood delineations: European Union, Copernicus Emergency Management Service,
-  EMSR773
-- Infrastructure: © OpenStreetMap contributors, ODbL
-- Hosted map context: © OpenStreetMap contributors, © CARTO
-
-Upstream datasets retain their own terms. The MIT license in this repository
-applies to RadarWatch source code, not to upstream data.
-
-## Limitations
-
-- Urban double-bounce can obscure inundation in SAR.
-- Wet soil, agriculture, and surface roughness changes can resemble flooding.
-- The event evolved between the flood peak, optical reference, and SAR pass.
-- OSM is incomplete and is not an authoritative asset inventory.
-- Exposure is geometric intersection, not confirmed damage.
-- Potential isolation assumes intersected road edges are unavailable; no
-  observed closure data is used.
-- V1 does not use NISAR, an EO foundation model, optical fusion, population
-  exposure, live processing, or an emergency-response agent.
-
-## Development
-
-```powershell
-uv run ruff check .
-uv run ruff format --check .
-uv run pytest
-```
-
-CI runs the network-free test suite on Windows and Ubuntu. Real external-data
-acquisition remains a documented local integration run because it requires an
-Earthdata account.
+JalDrishti source code is licensed under the repository's MIT license. External
+datasets retain their own licences and attribution requirements; the MIT licence
+does not relicense Survey of India, OpenStreetMap, NASA, Copernicus, or other
+upstream data.

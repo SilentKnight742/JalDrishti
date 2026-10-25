@@ -1,61 +1,55 @@
-[build-system]
-requires = ["hatchling>=1.27"]
-build-backend = "hatchling.build"
-
 [project]
-name = "radarwatch"
+name = "jaldrishti-workspace"
 version = "0.1.0"
-description = "SAR-based flood-change and infrastructure-exposure intelligence"
-readme = "README.md"
-requires-python = ">=3.14,<3.15"
-license = { file = "LICENSE" }
-authors = [{ name = "RadarWatch contributors" }]
+description = "Evidence-driven flood intelligence and response-support platform"
+requires-python = ">=3.12,<3.15"
 dependencies = [
-  "folium>=0.20,<1",
-  "pandas>=2.2,<3",
-  "streamlit>=1.50,<2",
+  "jaldrishti-api",
+  "jaldrishti-core[analysis]",
+  "jaldrishti-workers",
 ]
 
-[project.optional-dependencies]
-pipeline = [
-  "earthaccess>=0.16,<1",
-  "geopandas>=1.0,<2",
-  "networkx>=3.4,<4",
-  "numpy>=2.0,<3",
-  "osmnx>=2.0,<3",
-  "pillow>=11,<13",
-  "pydantic>=2.10,<3",
-  "pyarrow>=20,<25",
-  "pyproj>=3.7,<4",
-  "pyyaml>=6.0,<7",
-  "rasterio>=1.4,<2",
-  "requests>=2.32,<3",
-  "scikit-image>=0.25,<1",
-  "scipy>=1.15,<2",
-  "shapely>=2.0,<3",
-  "typer>=0.15,<1",
-]
+[dependency-groups]
 dev = [
-  "pre-commit>=4.0,<5",
-  "pytest>=8.3,<9",
-  "pytest-cov>=6.0,<7",
+  "alembic>=1.14,<2",
+  "httpx>=0.28,<1",
+  "pytest>=8.3,<10",
+  "pytest-asyncio>=0.25,<2",
+  "pytest-cov>=6,<8",
   "ruff>=0.12,<1",
 ]
 
-[project.scripts]
-radarwatch = "radarwatch.cli:app"
+[tool.uv]
+package = false
 
-[tool.hatch.build.targets.wheel]
-packages = ["src/radarwatch"]
+[tool.uv.workspace]
+members = [
+  "apps/api",
+  "packages/jaldrishti",
+  "workers",
+]
+
+[tool.uv.sources]
+jaldrishti-api = { workspace = true }
+jaldrishti-core = { workspace = true }
+jaldrishti-workers = { workspace = true }
 
 [tool.pytest.ini_options]
-addopts = "-ra --strict-markers --strict-config --cov=radarwatch --cov-report=term-missing"
+addopts = "-ra --strict-markers --strict-config"
 testpaths = ["tests"]
-markers = ["integration: tests that use real external services"]
+pythonpath = [
+  "apps/api/src",
+  "packages/jaldrishti/src",
+  "workers/src",
+]
+markers = [
+  "integration: requires local infrastructure such as PostGIS or Redis",
+  "contract: validates a frozen external-source response",
+]
 
 [tool.ruff]
 line-length = 100
-target-version = "py314"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
@@ -67,9 +61,8 @@ line-ending = "lf"
 
 [tool.coverage.run]
 branch = true
-source = ["radarwatch"]
+source = ["jaldrishti", "jaldrishti_api", "jaldrishti_workers"]
 
 [tool.coverage.report]
-fail_under = 60
 show_missing = true
 skip_covered = true

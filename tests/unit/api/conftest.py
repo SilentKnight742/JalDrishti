@@ -1,0 +1,8 @@
+"""Expose the two independently packaged src trees to unit tests."""
+
+import sys
+from pathlib import Path
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(REPOSITORY_ROOT / "packages" / "jaldrishti" / "src"))
+sys.path.insert(0, str(REPOSITORY_ROOT / "apps" / "api" / "src"))

@@ -1,0 +1,173 @@
+name: jaldrishti
+
+x-api-service: &api-service
+  image: jaldrishti-api:local
+  build:
+    context: .
+    dockerfile: apps/api/Dockerfile
+  environment:
+    JALDRISHTI_ENVIRONMENT: ${JALDRISHTI_ENVIRONMENT:-development}
+    JALDRISHTI_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-jaldrishti}:${POSTGRES_PASSWORD:-jaldrishti}@postgres:5432/${POSTGRES_DB:-jaldrishti}
+    JALDRISHTI_REDIS_URL: redis://redis:6379/0
+    JALDRISHTI_LOG_LEVEL: ${JALDRISHTI_LOG_LEVEL:-INFO}
+    JALDRISHTI_CORS_ORIGINS: ${JALDRISHTI_CORS_ORIGINS:-["http://localhost:5173","http://localhost:8080"]}
+    JALDRISHTI_CONTACT_ENCRYPTION_KEY: ${JALDRISHTI_CONTACT_ENCRYPTION_KEY:-AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=}
+    JALDRISHTI_CONTACT_ENCRYPTION_KEY_ID: ${JALDRISHTI_CONTACT_ENCRYPTION_KEY_ID:-development-only-v1}
+    JALDRISHTI_INCIDENT_MEDIA_DIRECTORY: /var/lib/jaldrishti/incidents
+    JALDRISHTI_INCIDENT_RATE_LIMIT_PER_HOUR: ${JALDRISHTI_INCIDENT_RATE_LIMIT_PER_HOUR:-10}
+    JALDRISHTI_INCIDENT_MEDIA_MAX_BYTES: ${JALDRISHTI_INCIDENT_MEDIA_MAX_BYTES:-8388608}
+
+services:
+  postgres:
+    image: postgis/postgis:17-3.5
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-jaldrishti}
+      POSTGRES_USER: ${POSTGRES_USER:-jaldrishti}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-jaldrishti}
+    ports:
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U ${POSTGRES_USER:-jaldrishti} -d ${POSTGRES_DB:-jaldrishti}
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_HOST_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  migrate:
+    <<: *api-service
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  seed:
+    <<: *api-service
+    command:
+      - python
+      - -m
+      - jaldrishti_api.seed
+      - --directory
+      - data/bootstrap/assam
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
+  incident-media-init:
+    <<: *api-service
+    user: root
+    command:
+      - sh
+      - -c
+      - >-
+        chown -R jaldrishti:jaldrishti /var/lib/jaldrishti/incidents &&
+        chmod 700 /var/lib/jaldrishti/incidents
+    volumes:
+      - incident-media:/var/lib/jaldrishti/incidents
+    restart: "no"
+
+  api:
+    <<: *api-service
+    ports:
+      - "${API_HOST_PORT:-8000}:8000"
+    volumes:
+      - incident-media:/var/lib/jaldrishti/incidents
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      incident-media-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  worker:
+    image: jaldrishti-worker:local
+    build:
+      context: .
+      dockerfile: workers/Dockerfile
+    environment:
+      JALDRISHTI_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-jaldrishti}:${POSTGRES_PASSWORD:-jaldrishti}@postgres:5432/${POSTGRES_DB:-jaldrishti}
+      JALDRISHTI_REDIS_URL: redis://redis:6379/0
+      JALDRISHTI_LOG_LEVEL: ${JALDRISHTI_LOG_LEVEL:-INFO}
+      JALDRISHTI_RAW_ARCHIVE_DIR: /var/lib/jaldrishti/raw
+      JALDRISHTI_PRODUCTS_DIR: /var/lib/jaldrishti/products
+      EARTHDATA_TOKEN: ${EARTHDATA_TOKEN:-}
+      EARTHDATA_USERNAME: ${EARTHDATA_USERNAME:-}
+      EARTHDATA_PASSWORD: ${EARTHDATA_PASSWORD:-}
+    volumes:
+      - raw-data:/var/lib/jaldrishti/raw
+      - products-data:/var/lib/jaldrishti/products
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  beat:
+    image: jaldrishti-worker:local
+    build:
+      context: .
+      dockerfile: workers/Dockerfile
+    command:
+      - celery
+      - --app
+      - jaldrishti_workers.celery_app:celery_app
+      - beat
+      - --loglevel
+      - INFO
+      - --schedule
+      - /tmp/jaldrishti-celerybeat-schedule
+    environment:
+      JALDRISHTI_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-jaldrishti}:${POSTGRES_PASSWORD:-jaldrishti}@postgres:5432/${POSTGRES_DB:-jaldrishti}
+      JALDRISHTI_REDIS_URL: redis://redis:6379/0
+      JALDRISHTI_LOG_LEVEL: ${JALDRISHTI_LOG_LEVEL:-INFO}
+      JALDRISHTI_RAW_ARCHIVE_DIR: /var/lib/jaldrishti/raw
+    volumes:
+      - raw-data:/var/lib/jaldrishti/raw
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    image: jaldrishti-web:local
+    build:
+      context: apps/web
+      args:
+        VITE_API_BASE_URL: /api/v1
+    ports:
+      - "${WEB_HOST_PORT:-8080}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  redis-data:
+  raw-data:
+  products-data:
+  incident-media:

@@ -1,4 +1,4 @@
-name: CI
+name: JalDrishti CI
 
 on:
   push:
@@ -9,24 +9,131 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  python:
+    name: Python (${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version-file: ".python-version"
       - name: Install uv
         run: python -m pip install uv==0.12.5
       - name: Install locked environment
-        run: uv sync --all-extras --locked
+        run: uv sync --all-packages --group dev --locked
       - name: Lint
         run: uv run ruff check .
       - name: Format check
         run: uv run ruff format --check .
       - name: Test
         run: uv run pytest -q
+
+  web:
+    name: Web application
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+  valencia-capsule:
+    name: Frozen Valencia regression suite
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: case_studies/valencia
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: case_studies/valencia/.python-version
+      - name: Install uv
+        run: python -m pip install uv==0.12.5
+      - run: uv sync --all-extras --locked
+      - run: uv run pytest -q
+
+  containers:
+    name: Container builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose config --quiet
+      - run: docker compose build api worker web
+
+  integration:
+    name: PostGIS migration and seed smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Start infrastructure
+        run: docker compose up -d --wait postgres redis
+      - name: Build application images
+        run: docker compose build api web
+      - name: Apply migrations
+        run: docker compose run --rm migrate
+      - name: Load deterministic Assam bootstrap
+        run: docker compose run --rm seed
+      - name: Check model and migration agreement
+        run: docker compose run --rm --no-deps api alembic check
+      - name: Start and verify application
+        run: |
+          docker compose up -d api web
+          for attempt in {1..30}; do
+            if curl --fail --silent http://localhost:8080/api/v1/status >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose logs api web
+          exit 1
+      - name: Exercise privacy-safe multipart reporting
+        run: |
+          curl --fail --silent --show-error \
+            -X POST http://localhost:8080/api/v1/incidents/report \
+            -F submission_id=9770e470-3f83-42d5-921f-ddbfb0cb35bc \
+            -F incident_type=road_flooded \
+            -F 'description=CI private incident detail must not appear in the receipt' \
+            -F latitude=26.1445 \
+            -F longitude=91.7362 \
+            -F location_method=map \
+            -F privacy_consent=true \
+            -F contact=ci-private@example.invalid \
+            -F 'photo=@case_studies/valencia/docs/assets/radarwatch-app.png;type=image/png' \
+            | python -c 'import json,sys; payload=json.load(sys.stdin); assert payload["verification_state"] == "unverified"; assert payload["event_id"] is None; rendered=json.dumps(payload); assert "CI private incident" not in rendered; assert "ci-private" not in rendered'
+      - name: Install browser test runtime
+        working-directory: apps/web
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Run browser-to-API smoke tests
+        working-directory: apps/web
+        env:
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:8080
+        run: npm run test:e2e
+      - name: Verify private media volume permissions
+        run: docker compose exec -T api test -w /var/lib/jaldrishti/incidents
+      - name: Show service logs on failure
+        if: failure()
+        run: docker compose logs postgres redis migrate seed incident-media-init api web
+      - name: Stop services
+        if: always()
+        run: docker compose down --volumes

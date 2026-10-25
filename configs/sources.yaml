@@ -1,0 +1,81 @@
+schema_version: "1.0"
+
+sources:
+  administrative_boundaries:
+    expected_interval: P30D
+    stale_after: P120D
+    failed_after: P365D
+
+  osm_geography:
+    expected_interval: P7D
+    stale_after: P30D
+    failed_after: P90D
+
+  assam_river_telemetry:
+    adapter: nwdp_ckan
+    dataset_url: https://nwdp.nwic.gov.in/dataset/river-water-level-telemetry-hourly-assam-department
+    package_id: 6273c426-32f9-4fdf-b67f-e4e7a46d8554
+    resource_id: 847f5630-f231-46c0-922d-0f2f379a5cb8
+    expected_interval: PT1H
+    stale_after: PT3H
+    failed_after: PT12H
+    operational_status: pilot
+    coverage_status: incomplete_public_feed
+    source_timezone: null
+    stable_station_identifier: false
+    warning_danger_thresholds: false
+    datum_published: false
+    caveat: >-
+      The public 2026-2030 resource currently has incomplete statewide coverage
+      and does not publish stable station identifiers, datum, timezone, or
+      warning and danger thresholds. It must not be presented as a complete
+      operational Assam feed.
+
+  imd_district_warnings:
+    adapter: imd_public_wfs
+    map_url: https://mausam.imd.gov.in/responsive/districtWiseWarningGIS.php?day=1
+    wfs_url: https://reactjs.imd.gov.in/geoserver/wfs
+    type_name: imd:district_warnings_india
+    expected_interval: PT30M
+    stale_after: PT3H
+    failed_after: PT12H
+    quality: official
+    district_mapping_version: imd-obj-id-to-assam-lgd-2026-09-24
+    caveat: >-
+      The public WFS drives IMD's district-warning map. JalDrishti keeps all
+      five published days and maps IMD object identifiers to the current
+      35-district Survey of India/LGD geometry. It does not infer a warning
+      where IMD publishes green/no-warning status.
+
+  rainfall_model_guidance:
+    adapter: open_meteo
+    documentation_url: https://open-meteo.com/en/docs
+    terms_url: https://open-meteo.com/en/terms
+    model: ecmwf_ifs025
+    horizon: PT72H
+    expected_interval: PT3H
+    stale_after: PT6H
+    failed_after: PT12H
+    quality: model_derived
+    spatial_support: district_representative_point
+    caveat: >-
+      This is model-derived rainfall guidance sampled at one representative
+      point per district. It is neither observed rainfall nor an official IMD
+      forecast, and the public Open-Meteo API terms limit production use.
+
+  opera_sentinel_1:
+    adapter: asf_opera_s1
+    catalogue_url: https://api.daac.asf.alaska.edu/services/search/param
+    documentation_url: https://docs.asf.alaska.edu/api/basics/
+    authentication_url: https://docs.asf.alaska.edu/asf_search/BestPractices/
+    expected_interval: event_scoped
+    stale_after: null
+    failed_after: null
+    quality: satellite_observed
+    credentials_required_for_catalogue: false
+    credentials_required_for_assets: true
+    caveat: >-
+      Catalogue discovery is public. Downloading OPERA Sentinel-1 RTC assets
+      requires NASA Earthdata credentials and acceptance of ASF terms. Derived
+      change polygons are potential inundation evidence and are not a claim of
+      confirmed flooding or damage.

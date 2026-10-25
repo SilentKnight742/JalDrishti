@@ -1,0 +1,50 @@
+schema_version: "1.0"
+
+region:
+  id: assam
+  name: Assam
+  iso_3166_2: IN-AS
+  lgd_code: "18"
+
+geography:
+  administrative_boundaries:
+    adapter: survey_of_india_abdb
+    source: Survey of India Administrative Boundary Data Base
+    source_url: https://surveyofindia.gov.in/pages/administrative-boundary-data-base-abdb-
+    download_url: https://surveyofindia.gov.in/documents/State_District_Subdistrict_PAN%20INDIA.rar
+    source_version: abdb-2026-05-07
+    source_version_basis: District Boundary shapefile modification date in archive
+    archive_http_last_modified: "2026-05-12"
+    archive_sha256: b8325e5d9dd0f04a6663d775363fe38cd2f23bd9dbae3fb7118b4e6e0ce0bcb7
+    expected_districts: 35
+    state_lgd_code: "18"
+    source_crs: LCC_WGS84
+    target_crs: EPSG:4326
+    map_simplification_tolerance_metres: 25
+    quality: official
+
+  community_context:
+    adapter: geofabrik_osm
+    source: OpenStreetMap contributors via Geofabrik
+    source_url: https://download.geofabrik.de/asia/india/north-eastern-zone.html
+    license: ODbL-1.0
+    quality: community_data
+    layers:
+      - major_settlements
+      - selected_major_rivers
+      - selected_facilities
+    bootstrap_note: >-
+      The committed development bootstrap uses attributed Overpass and
+      OpenStreetMap API snapshots clipped to the official Assam boundary;
+      scheduled refreshes should use the bulk Geofabrik extract.
+    facility_categories:
+      - healthcare
+      - school
+      - police
+      - fire_station
+      - emergency_service
+
+map:
+  initial_center: [92.9376, 26.2006]
+  initial_zoom: 6.2
+  bounds: [89.6, 24.0, 96.1, 28.5]

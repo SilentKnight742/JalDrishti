@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jaldrishti-workers"
+version = "0.1.0"
+description = "Background jobs for JalDrishti ingestion and intelligence"
+requires-python = ">=3.12"
+dependencies = [
+  "asyncpg>=0.30,<1",
+  "celery[redis]>=5.5,<6",
+  "earthaccess>=0.19,<1",
+  "jaldrishti-core[analysis]",
+  "requests>=2.32,<3",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

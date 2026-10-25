@@ -1,0 +1,16 @@
+{
+  "version": "assam-official-warning-v1",
+  "official_warning_state": {
+    "green": null,
+    "yellow": "watch",
+    "orange": "warning",
+    "red": "warning"
+  },
+  "recovery_grace_hours": 24,
+  "severe_requires_satellite_inundation": true,
+  "notes": [
+    "Model rainfall is supporting evidence and never creates an event by itself.",
+    "Pilot NWDP telemetry cannot trigger a state while timezone, datum and thresholds are unpublished.",
+    "Severe is unavailable until satellite-observed inundation and exposure evidence exist."
+  ]
+}
